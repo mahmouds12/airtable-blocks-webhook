@@ -12,14 +12,16 @@ import {
     ViewPickerSynced,
     FieldPickerSynced,
     FormField,
+    InputSynced
 } from '@airtable/blocks/ui';
-import { cursor } from '@airtable/blocks';
+import { cursor, globalConfig } from '@airtable/blocks';
 import React, { useState } from 'react';
 
 const GlobalConfigKeys = {
     TABLE_ID: 'tableId',
     VIEW_ID: 'viewId',
-    FIELD_ID: 'fieldId'
+    FIELD_ID: 'fieldId',
+    WEBHOOK_URL: 'webhookUrl'
 
 };
 
@@ -68,17 +70,17 @@ function UpdateRecordsBlock() {
         }
 
     }
-    return (
-        <Container>
-            <Settings table={table} />
-            <UpdateSelectedRecordsButton
-                tableToUpdate={tableToUpdate}
-                fieldToUpdate={numberField}
-                selectedRecordIds={cursor.selectedRecordIds}
-            />
+    return ([
+        <Settings key={3} table={table} />,
+        <UpdateSelectedRecordsButton
+            key={4}
+            tableToUpdate={tableToUpdate}
+            fieldToUpdate={numberField}
+            selectedRecordIds={cursor.selectedRecordIds}
+        />
+    ]
 
 
-        </Container>
     );
 
 }
@@ -122,9 +124,9 @@ function UpdateSelectedRecordsButton({ tableToUpdate, fieldToUpdate, selectedRec
         let buttonText;
         const recordsText = `record${selectedRecordIds.length === 1 ? '' : 's'}`;
         if (isUpdateInProgress) {
-            buttonText = `Sending ${numRecordsBeingUpdated} emails`;
+            buttonText = `Sending ${numRecordsBeingUpdated} ${recordsText}`;
         } else {
-            buttonText = `Click to notify ${selectedRecordIds.length} contacts by email`;
+            buttonText = `Click to send ${selectedRecordIds.length} record data to webhook `;
         }
 
         // Prepare the updates that we are going to perform. (Required to check permissions)
@@ -155,6 +157,7 @@ function UpdateSelectedRecordsButton({ tableToUpdate, fieldToUpdate, selectedRec
 
         return (
             <Button
+                marginLeft={3}
                 variant="primary"
                 onClick={async function () {
                     // Mark the update as started.
@@ -164,7 +167,7 @@ function UpdateSelectedRecordsButton({ tableToUpdate, fieldToUpdate, selectedRec
                     // await is used to wait for all of the updates to finish saving
                     // to Airtable servers. This keeps the button disabled until the
                     // update is finished.
-                    await updateRecordsInBatches(tableToUpdate, updates);
+                    await updateRecordsInBatches(tableToUpdate, updates  );
 
                     // We're done! Mark the update as finished.
                     setNumRecordsBeingUpdated(null);
@@ -182,28 +185,29 @@ function UpdateSelectedRecordsButton({ tableToUpdate, fieldToUpdate, selectedRec
 async function updateRecordsInBatches(table, updates) {
     // Saves the updates in batches of MAX_RECORDS_PER_UPDATE to stay under size
     // limits.
+    console.log('webhookUrl', globalConfig.get(GlobalConfigKeys.WEBHOOK_URL));
     let i = 0;
     console.log('updates.length', updates.length)
     console.log('updates', updates)
     while (i < updates.length) {
-        fetch('https://hook.integromat.com/5tks1nmbm3ccy7x99v4sdl8bfihgdtki', {
-            method: 'GET',
+        fetch(globalConfig.get(GlobalConfigKeys.WEBHOOK_URL), {
+            method: 'POST',
             headers: {
                 'Accept': 'application/json',
             },
-            data: JSON.stringify({
+            body: JSON.stringify({
                 email: 'mahmouds12@gmail.com',
                 message: 'Hello from airtable webhook'
             })
         })
-        .then (function (response) {console.log(response)})
-        .catch(function (error) {console.log(error.message)});
+            .then(function (response) { console.log(response) })
+            .catch(function (error) { console.log(error.message) });
         // const updateBatch = updates.slice(i, i + MAX_RECORDS_PER_UPDATE);
         // await is used to wait for the update to finish saving to Airtable
         // servers before continuing. This means we'll stay under the rate
         // limit for writes.
         // await table.updateRecordsAsync(updateBatch);
-         i ++;
+        i++;
     }
 }
 
@@ -221,7 +225,7 @@ function Settings({ table }) {
                     </FormField>
                 )}
                 {table && (
-                    <FormField label="X-axis field" width="25%" paddingLeft={1} marginBottom={0}>
+                    <FormField label="Webhook Data" width="25%" paddingLeft={1} marginBottom={0}>
                         <FieldPickerSynced
                             table={table}
                             globalConfigKey={GlobalConfigKeys.FIELD_ID}
@@ -229,6 +233,14 @@ function Settings({ table }) {
                     </FormField>
                 )}
 
+
+            </Box>,
+            <Box key={1} display="flex" padding={3} >
+                <InputSynced
+                    globalConfigKey={GlobalConfigKeys.WEBHOOK_URL}
+                    placeholder="webhook url"
+                    width="320px"
+                />
             </Box>
         ]
     );
