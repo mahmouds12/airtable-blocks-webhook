@@ -203,7 +203,7 @@ async function updateRecordsInBatches(table, updates) {
         // servers before continuing. This means we'll stay under the rate
         // limit for writes.
         // await table.updateRecordsAsync(updateBatch);
-        // i += MAX_RECORDS_PER_UPDATE;
+         i ++;
     }
 }
 
